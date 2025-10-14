@@ -1,0 +1,3 @@
+function showMessage() {
+  alert("Deployed successfully on GitHub Pages 🚀");
+}
