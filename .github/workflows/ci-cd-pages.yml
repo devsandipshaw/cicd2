@@ -1,0 +1,81 @@
+name: CI/CD to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  # Step 1: Test
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install HTML validator
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tidy
+        shell: bash
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Validate HTML
+        run: |
+          tidy -qe index.html
+
+  # Step 2: Build
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install Minification Tools
+        run: |
+          npm install -g terser clean-css-cli
+
+      - name: Build (Minify JS/CSS)
+        run: |
+          mkdir -p dist
+          terser script.js -o dist/script.min.js
+          cleancss -o dist/style.min.css style.css
+          cp index.html dist/
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  # Step 3: Deploy
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: ./dist
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4.0.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: gh-pages
+          force_orphan: true
